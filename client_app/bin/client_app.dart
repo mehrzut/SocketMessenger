@@ -5,11 +5,11 @@ import 'dart:typed_data';
 void main() async {
   // gets the username
   String name = _getUsername();
-
-  MySocket mySocket = MySocket.init(name);
-
+  // initializes the connection
+  MySocket.init(name);
 }
 
+/// get the username to show to other clients
 String _getUsername() {
   String name = '';
   while (name.isEmpty) {
@@ -21,6 +21,7 @@ String _getUsername() {
 
 class MySocket {
   String name;
+
   MySocket.init(this.name) {
     _initialize();
   }
@@ -29,6 +30,7 @@ class MySocket {
   var port = 8080;
   Socket? socket;
 
+  /// initializes the connection
   _initialize() async {
     await _connectionHandler();
     await _sendMessageHandler();
@@ -40,7 +42,7 @@ class MySocket {
       socket = await Socket.connect(address, port);
       if (socket != null) {
         print(
-            'Connected to: ${socket!.remoteAddress.address}:${socket!.remotePort}');
+            '# Connected to: ${socket!.remoteAddress.address}:${socket!.remotePort}');
         _messageReceiver();
       }
     } on Exception catch (e) {
@@ -55,7 +57,7 @@ class MySocket {
       // handles data from server
       (Uint8List data) {
         final serverResponse = String.fromCharCodes(data);
-        print('$serverResponse');
+        print(serverResponse);
       },
 
       // handles errors
@@ -66,7 +68,7 @@ class MySocket {
 
       // handles server ending connection
       onDone: () {
-        print('Server crashed');
+        print('# Connection stopped.');
         socket?.destroy();
       },
     );
@@ -74,21 +76,30 @@ class MySocket {
 
   _sendMessageHandler() async {
     if (socket != null) {
+      // isolates the input message method
       final receivePort = ReceivePort();
-      final isolate = await Isolate.spawn<SendPort>(
-          _inputMessage, receivePort.sendPort);
-      print('* Enter "exit" to close connection');
+      final isolate =
+          await Isolate.spawn<SendPort>(_inputMessage, receivePort.sendPort);
+      // hints
+      print("* Now you can type your message and hit /Enter/ to send it.");
+      print("* Type 'exit' and hit /Enter/ to close connection.");
+      // handles input messages
       await for (final message in receivePort) {
+        // breaks the loop on 'exit'
         if (message == 'exit') break;
-        if(message is String && message.trim().isNotEmpty) {
+        // sends the message if it is not empty
+        if (message is String && message.trim().isNotEmpty) {
           await sendMessage(message);
         }
       }
+      // kills isolate on exit
       isolate.kill(priority: Isolate.immediate);
+      // closes socket on exit
       socket?.close();
     }
   }
 
+  /// gets input messages
   static _inputMessage(SendPort port) {
     String message = '';
     while (message != 'exit') {
@@ -98,10 +109,8 @@ class MySocket {
     Isolate.current.kill();
   }
 
+  /// sends messages to server
   Future<void> sendMessage(String message) async {
     socket?.write('$name: $message');
-    await Future<void>.delayed(Duration(milliseconds: 50));
   }
 }
-
-
