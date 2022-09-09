@@ -45,13 +45,15 @@ class ClientSocket {
 
       // handles errors
       onError: (dynamic error) {
-        print(error);
+        print('# An error occurred: $error');
+        Isolate.current.kill();
         socket?.destroy();
       },
 
       // handles server ending connection
       onDone: () {
         print('# Connection stopped.');
+        Isolate.current.kill();
         socket?.destroy();
       },
     );
